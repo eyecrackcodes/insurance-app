@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <h1>Register</h1>
+        <nav>
+            <a href="/">Home</a>
+        </nav>
+    </header>
+    <main>
+        <form method="POST" action="/register">
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username" required>
+            
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required>
+            
+            <label for="commission_tier">Commission Tier:</label>
+            <select id="commission_tier" name="commission_tier" required>
+                <option value="LOA5">LOA5 (5%)</option>
+                <option value="LOA20">LOA20 (20%)</option>
+                <option value="Independent">Independent</option>
+            </select>
+            
+            <label for="hire_date">Hire Date:</label>
+            <input type="date" id="hire_date" name="hire_date" required>
+            
+            <button type="submit">Register</button>
+        </form>
+        
+        
+    </main>
+    <footer>
+        <p>&copy; 2024 Business Tracker</p>
+    </footer>
+</body>
+</html>

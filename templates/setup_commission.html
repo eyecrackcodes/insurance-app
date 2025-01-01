@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup Commission</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <h1>Setup Commission</h1>
+    </header>
+    <main>
+        <form action="/setup-commission" method="POST">
+            <label for="agent_id">Agent ID:</label>
+            <input type="text" id="agent_id" name="agent_id" required>
+
+            <label for="commission_type">Commission Type:</label>
+            <select id="commission_type" name="commission_type" required>
+                <option value="Independent">Independent</option>
+                <option value="LOA">LOA</option>
+            </select>
+
+            <label for="initial_percentage">Initial Commission Percentage:</label>
+            <input type="number" id="initial_percentage" name="initial_percentage" step="0.01" required>
+
+            <label for="duration">Duration for Initial Percentage (Months):</label>
+            <input type="number" id="duration" name="duration" required>
+
+            <label for="post_duration_percentage">Post-Duration Commission Percentage:</label>
+            <input type="number" id="post_duration_percentage" name="post_duration_percentage" step="0.01" required>
+
+            <button type="submit">Save</button>
+        </form>
+    </main>
+    <footer>
+        <p>&copy; 2024 Business Tracker</p>
+    </footer>
+</body>
+</html>

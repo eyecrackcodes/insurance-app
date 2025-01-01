@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Update Status</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <h1>Update Client Status</h1>
+        <nav>
+            <a href="/">Home</a>
+            <a href="/clients">View Clients</a>
+            <a href="/dashboard">Dashboard</a>
+
+        </nav>
+    </header>
+    <main>
+        {% if message %}
+        <p style="color: green;">{{ message }}</p>
+        {% endif %}
+        <form method="POST">
+            <label for="status">Status:</label>
+            <select id="status" name="status" required>
+                <option value="Awaiting Funds" {% if client['Status Filter'] == 'Awaiting Funds' %}selected{% endif %}>Awaiting Funds</option>
+                <option value="Pending Lapse" {% if client['Status Filter'] == 'Pending Lapse' %}selected{% endif %}>Pending Lapse</option>
+                <option value="Lapse" {% if client['Status Filter'] == 'Lapse' %}selected{% endif %}>Lapse</option>
+                <option value="Inforce" {% if client['Status Filter'] == 'Inforce' %}selected{% endif %}>Inforce</option>
+            </select><br><br>
+
+            <label for="ip_date">Initial Premium (IP) Date:</label>
+            <input type="date" id="ip_date" name="ip_date" value="{{ client['IP Date'] }}"><br><br>
+
+            <button type="submit">Update Status</button>
+        </form>
+    </main>
+    <footer>
+        <p>&copy; 2024 Business Tracker</p>
+    </footer>
+</body>
+</html>

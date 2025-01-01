@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Business Dashboard for tracking policies, premiums, and commissions.">
+    <title>Business Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!-- Include Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment"></script>
+    <style>
+        /* Add some custom styling */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background-color: #007BFF;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        nav {
+            margin-top: 10px;
+        }
+
+        nav a {
+            margin: 0 10px;
+            color: white;
+            text-decoration: none;
+            font-size: 16px;
+        }
+
+        nav a:hover {
+            text-decoration: underline;
+        }
+
+        main {
+            padding: 20px;
+        }
+
+        #metrics {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .metric-card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            text-align: center;
+            width: 250px;
+            transition: transform 0.2s ease;
+        }
+
+        .metric-card:hover {
+            transform: scale(1.05);
+        }
+
+        .metric-card h2 {
+            margin-bottom: 10px;
+            font-size: 18px;
+            color: #007BFF;
+        }
+
+        .metric-card p {
+            font-size: 22px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        /* Custom Styling for Chart */
+        canvas {
+            max-width: 100%;
+            height: 400px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Business Dashboard</h1>
+        <nav>
+            <a href="/">Home</a>
+            <a href="/clients">View Clients</a>
+            <a href="/add_client">Add Client</a>
+            <a href="/dashboard">Dashboard</a>
+            <a href="/logout">Logout</a>
+        </nav>
+    </header>
+    <main>
+        <div id="metrics">
+            <div class="metric-card">
+                <h2>Total Policies</h2>
+                <p>{{ total_policies }}</p>
+            </div>
+            <div class="metric-card">
+                <h2>Total Premium</h2>
+                <p>${{ total_premium }}</p>
+            </div>
+            <div class="metric-card">
+                <h2>Total Commissions Paid</h2>
+                <p>${{ total_commission_paid }}</p>
+            </div>
+        </div>
+
+        <!-- Chart Container -->
+        <div style="width: 80%; margin: auto; padding-top: 30px;">
+            <canvas id="commissionChart"></canvas>
+        </div>
+    </main>
+    <script>
+        // Ensure monthData and commissionData are valid
+        const monthData = {{ month_data | tojson | safe }};
+        const commissionData = {{ commission_data | tojson | safe }};
+        
+        // Check for empty data
+        if (monthData.length === 0 || commissionData.length === 0) {
+            console.error('No data available to render the chart');
+            document.getElementById('commissionChart').innerText = 'No data available for the chart.';
+        } else {
+            const labels = monthData.map(item => item.month);
+            const commissionPaid = commissionData.map(item => item.commission_paid);
+    
+            // Prepare data for the chart
+            const data = {
+                labels: labels,
+                datasets: [{
+                    label: 'Commission Paid',
+                    data: commissionPaid,
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4
+                },
+                {
+                    label: 'Forecasted Trend',
+                    data: forecastTrend(commissionPaid),
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 2,
+                    fill: false,
+                    borderDash: [5, 5],
+                    tension: 0.4
+                }]
+            };
+    
+            // Create the chart
+            const ctx = document.getElementById('commissionChart').getContext('2d');
+            const commissionChart = new Chart(ctx, {
+                type: 'line',
+                data: data,
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString(); // Format the Y-axis as currency
+                                }
+                            }
+                        },
+                        x: {
+                            type: 'time',  // Use 'time' scale for the X-axis
+                            time: {
+                                unit: 'month',  // Set the time unit to 'month'
+                                tooltipFormat: 'll', // Format in the tooltip (e.g., 'Jan 2024')
+                                displayFormats: {
+                                    month: 'MMM yyyy' // Format the X-axis as 'Jan 2024'
+                                }
+                            },
+                            ticks: {
+                                maxRotation: 45, 
+                                minRotation: 45
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(tooltipItem) {
+                                    let label = '$' + tooltipItem.raw.toLocaleString();
+                                    // If the label belongs to the forecast trend
+                                    if (tooltipItem.datasetIndex === 1) {
+                                        label += ' (Forecasted Trend)'; // More descriptive
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    
+        // Function to forecast a simple trend line (moving average or linear regression)
+        function forecastTrend(data) {
+            const forecast = [];
+            for (let i = 0; i < data.length; i++) {
+                if (i < 2) { // Keep the initial values
+                    forecast.push(data[i]);
+                } else {
+                    const avg = (data[i] + data[i - 1] + data[i - 2]) / 3; // Simple moving average
+                    forecast.push(avg);
+                }
+            }
+            return forecast;
+        }
+    </script>
+    
+    
+    <footer>
+        <p>&copy; 2024 Business Tracker. All Rights Reserved.</p>
+    </footer>
+</body>
+</html>

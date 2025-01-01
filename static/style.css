@@ -1,0 +1,802 @@
+/* General Styles */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f9f9f9;
+    color: #333;
+}
+
+header {
+    background-color: #007bff;
+    color: white;
+    padding: 15px;
+    text-align: center;
+}
+
+header h1 {
+    margin: 0;
+}
+
+footer {
+    background-color: #333;
+    color: white;
+    text-align: center;
+    padding: 10px;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+}
+
+footer p {
+    margin: 0;
+    font-size: 14px;
+}
+
+nav {
+    margin-top: 10px;
+}
+
+nav a {
+    color: white;
+    text-decoration: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+    background-color: #0056b3;
+    margin: 0 5px;
+    transition: background-color 0.3s;
+}
+
+nav a:hover {
+    background-color: #003d82;
+}
+
+/* Main Layout */
+main {
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+    flex: 1;
+}
+
+
+/* Filter Section */
+.filter-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin: 20px auto;
+    padding: 15px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    max-width: 1000px;
+}
+
+.filter-item {
+    flex: 1 1 180px;
+    text-align: left;
+}
+
+.filter-item label {
+    font-weight: bold;
+    margin-bottom: 5px;
+    display: block;
+    color: #333;
+}
+
+.filter-item select,
+.filter-item input {
+    width: 100%;
+    padding: 6px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 13px;
+    background-color: #f9f9f9;
+}
+
+.filter-button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.filter-button:hover {
+    background-color: #0056b3;
+}
+
+/* Table Styling */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px auto;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    font-size: 14px;
+}
+
+thead th {
+    background-color: #007bff;
+    color: white;
+    padding: 10px;
+    text-align: center;
+    font-size: 14px;
+    border-bottom: 2px solid #0056b3;
+    white-space: nowrap;
+}
+
+tbody td {
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+    text-align: center;
+    vertical-align: middle;
+    font-size: 13px;
+}
+
+tbody tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+tbody tr:hover {
+    background-color: #f1f1f1;
+}
+
+/* Buttons */
+button, .status-button, .notes-button {
+    padding: 6px 10px;
+    margin: 3px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    color: #007bff;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.status-button {
+    background-color: #007bff;
+}
+
+.notes-button {
+    background-color: #28a745;
+}
+
+button:hover, .status-button:hover, .notes-button:hover {
+    opacity: 0.9;
+}
+
+/* Compact Dropdown */
+select {
+    padding: 6px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 13px;
+    background-color: #fff;
+}
+
+/* Status Badge */
+.status-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    font-size: 12px;
+    font-weight: bold;
+    border-radius: 4px;
+    color: #fff;
+}
+
+.status-badge.inforce {
+    background-color: #28a745;
+}
+
+.status-badge.awaiting-funds {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+.status-badge.lapsed {
+    background-color: #dc3545;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
+    .filter-container {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    table th, table td {
+        text-align: center;
+    }
+}
+
+.notes-modal {
+    position: fixed; /* Fix position relative to the viewport */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%); /* Center horizontally and vertically */
+    z-index: 1000; /* Ensure it appears above all other elements */
+    background-color: #ffffff; /* Clean white background */
+    border-radius: 8px; /* Smooth edges */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); /* Shadow for depth */
+    width: 50%; /* Adjust width as needed */
+    max-height: 80%; /* Limit height for scrollable content */
+    overflow-y: auto; /* Enable scrolling for long content */
+    padding: 20px;
+    font-family: Arial, sans-serif;
+    margin: 0; /* Remove default margin */
+}
+
+/* Modal Overlay */
+.modal-overlay {
+    position: fixed; /* Overlay should cover the entire viewport */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5); /* Semi-transparent background */
+    z-index: 999; /* Ensure it's below the modal but above other content */
+}
+
+/* Notes Container */
+.notes-container {
+    margin-bottom: 20px;
+    max-height: 300px;
+    overflow-y: auto; /* Scrollable for long lists */
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 10px;
+    background-color: #f9f9f9;
+}
+
+/* Note Card */
+.note-card {
+    background: #ffffff;
+    border-radius: 6px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 10px 15px;
+    margin-bottom: 10px;
+    border: 1px solid #ddd; /* Add subtle border for clarity */
+}
+
+/* Buttons */
+.modal-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.notes-button {
+    background-color: #28a745;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.notes-button:hover {
+    background-color: #218838;
+}
+
+.notes-button.cancel {
+    background-color: #dc3545;
+}
+
+.notes-button.cancel:hover {
+    background-color: #c82333;
+}
+
+
+/* Dashboard Layout */
+.grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); /* 3 columns layout */
+    gap: 20px;
+    margin-top: 20px;
+}
+
+/* Metric Card Styling */
+.metric-card {
+    background-color: white;
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.metric-card:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+}
+
+.metric-card h2 {
+    font-size: 20px;
+    color: #007bff;
+    margin-bottom: 10px;
+}
+
+.metric-card p {
+    font-size: 18px;
+    font-weight: bold;
+    color: #333;
+}
+
+/* Policy Metrics Section Styling */
+#policy-metrics h3, #commission-metrics h3 {
+    font-size: 22px;
+    color: #333;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+/* Responsive Layout for Smaller Screens */
+@media (max-width: 768px) {
+    .grid {
+        grid-template-columns: repeat(2, 1fr); /* 2 columns on smaller screens */
+    }
+}
+
+@media (max-width: 480px) {
+    .grid {
+        grid-template-columns: 1fr; /* 1 column on very small screens */
+    }
+}
+
+
+/* Welcome Section Styling */
+.welcome-section {
+    text-align: center;
+    margin-bottom: 20px;
+    padding: 10px;
+    background-color: #f4f4f9; /* Light background for a subtle feel */
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.welcome-section h2 {
+    font-size: 20px;
+    color: #333;
+    margin: 0;
+}
+
+.welcome-section p {
+    font-size: 14px;
+    color: #555;
+}
+
+.welcome-section .commission-tier {
+    color: #007bff; /* Blue for emphasis on commission tier */
+    font-weight: bold;
+}
+
+
+
+/* Fixing Button Functionality */
+button, .status-button, .notes-button {
+    display: inline-block; /* Ensure buttons are visible */
+    padding: 6px 10px;
+    margin: 3px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    color: white;
+    font-size: 13px;
+    cursor: pointer; /* Ensure clickable */
+    text-align: center;
+    text-decoration: none; /* Remove underline */
+    transition: background-color 0.3s;
+}
+
+.status-button {
+    background-color: #007bff;
+}
+
+.notes-button {
+    background-color: #28a745;
+}
+
+button:hover, .status-button:hover, .notes-button:hover {
+    opacity: 0.9;
+}
+
+
+body {
+    display: flex;
+    flex-direction: column;
+    font-family: Arial, sans-serif;
+    background-color: #f9f9f9;
+    margin: 0;
+    padding: 0;
+    color: #333;
+}
+
+header {
+    background-color: #007bff;
+    color: white;
+    padding: 15px;
+    text-align: center;
+}
+
+header h1 {
+    margin: 0;
+}
+
+nav {
+    margin-top: 10px;
+}
+
+nav a {
+    color: white;
+    text-decoration: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+    background-color: #0056b3;
+    margin: 0 5px;
+    transition: background-color 0.3s;
+}
+
+nav a:hover {
+    background-color: #003d82;
+}
+
+main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+
+.grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: center;
+}
+
+.metric-card {
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    text-align: center;
+    width: 200px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.metric-card:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+}
+
+.metric-card h2 {
+    font-size: 18px;
+    color: #007bff;
+    margin-bottom: 10px;
+}
+
+.metric-card p {
+    font-size: 16px;
+    color: #333;
+}
+
+/* Charts Section Styling */
+.chart-container {
+    position: relative;
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto 30px; /* Center and add space between graphs */
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+canvas {
+    display: block;
+    margin: 0 auto; /* Center the canvas */
+}
+
+h3 {
+    font-size: 20px;
+    margin-bottom: 15px;
+    text-align: center; /* Center titles */
+    color: #333;
+}
+
+/* Legend and Tooltip Tweaks */
+.chartjs-legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 15px;
+    font-size: 14px;
+    color: #666;
+}
+
+.chartjs-tooltip {
+    font-size: 14px;
+    padding: 10px;
+    background-color: rgba(0, 0, 0, 0.8);
+    color: #fff;
+    border-radius: 5px;
+}
+
+/* Responsiveness */
+@media (max-width: 768px) {
+    .chart-container {
+        padding: 15px;
+    }
+    canvas {
+        width: 100% !important; /* Ensure responsiveness */
+    }
+}
+
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .grid {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .metric-card {
+        width: 100%;
+    }
+
+}
+
+/* Add Client Form Styling */
+form.add-client-form {
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    max-width: 500px;
+    margin: 20px auto;
+}
+
+form.add-client-form h2 {
+    font-size: 20px;
+    color: #007BFF;
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+form.add-client-form label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #333;
+}
+
+form.add-client-form input,
+form.add-client-form select,
+form.add-client-form textarea {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+form.add-client-form input:focus,
+form.add-client-form select:focus,
+form.add-client-form textarea:focus {
+    border-color: #007BFF;
+    outline: none;
+    box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+}
+
+form.add-client-form button {
+    width: 100%;
+    padding: 12px;
+    background-color: #007BFF;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+form.add-client-form button:hover {
+    background-color: #0056b3;
+}
+
+.filters {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.filters label {
+    font-weight: bold;
+}
+
+.filters select {
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+
+/* Filters Section */
+.filters {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+    margin: 20px auto;
+    padding: 20px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    max-width: 1000px;
+}
+
+.filter-item {
+    flex: 1;
+    text-align: left;
+}
+
+.month-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.month-button {
+    padding: 10px 15px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s ease;
+}
+
+.month-button:hover {
+    background-color: #0056b3;
+}
+
+.month-button:active {
+    background-color: #003f82;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .filters {
+        flex-direction: column;
+    }
+
+    .month-buttons {
+        flex-direction: column;
+    }
+
+    .month-button {
+        width: 100%;
+    }
+
+    table {
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+}
+
+/* Profile Card */
+.profile-card {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    padding: 30px;
+    max-width: 800px;  /* Increased max width for wider layout */
+    margin: 40px auto;
+    width: 100%;
+}
+
+/* General Form */
+form {
+    display: flex;
+    flex-wrap: wrap;  /* Allow fields to wrap */
+    gap: 20px;  /* Gap between fields */
+    justify-content: space-between;  /* Distribute space evenly */
+}
+
+/* Grouping labels and inputs */
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 48%; /* Half width for each field */
+}
+
+/* Inputs & Select */
+input, select {
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 14px;
+    background-color: #f9f9f9;
+    width: 100%;
+}
+
+/* Submit Button */
+button.submit-btn {
+    background-color: #007bff;
+    color: white;
+    padding: 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    width: 100%;
+}
+
+button.submit-btn:hover {
+    background-color: #0056b3;
+}
+
+/* Labels */
+label {
+    font-weight: bold;
+    font-size: 14px;
+}
+
+/* Responsiveness */
+@media (max-width: 768px) {
+    .profile-card {
+        width: 95%;
+    }
+    
+    /* Adjust form layout on smaller screens */
+    form {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    /* Full width on smaller screens */
+    .form-group {
+        width: 100%;
+    }
+}
+
+
+/* Tooltip Styling */
+.chartjs-tooltip {
+    font-size: 14px;
+    padding: 12px;
+    background-color: rgba(0, 0, 0, 0.8);
+    color: #fff;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.chartjs-tooltip .tooltip-title {
+    font-weight: bold;
+    color: #007bff;
+}
+

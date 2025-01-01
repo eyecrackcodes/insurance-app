@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header>
+        <h1>Financial Dashboard</h1>
+        <nav>
+            <a href="/">Home</a>
+            <a href="/clients">View Clients</a>
+            <a href="/add_client">Add Client</a>
+            <a href="/logout">Logout</a>
+        </nav>
+    </header>
+
+    <main>
+        <!-- Welcome Section -->
+        <section class="welcome-section">
+                <h2>Welcome, <span class="agent-name">{{ agent.username }}</span></h2>
+                <p><strong>Commission Tier:</strong> <span class="commission-tier">{{ agent.commission_tier }}</span></p>
+                <p><strong>Hire Date:</strong> <span class="hire-date">{{ agent.hire_date }}</span></p>
+        </section>
+
+        <!-- Policy Metrics Section -->
+        <section id="policy-metrics">
+            <h3>Policy Metrics</h3>
+            <div class="grid">
+                {% for status, count in policy_statuses.items() %}
+                <a href="/clients?status={{ status }}" class="metric-card status-{{ status | lower | replace(' ', '-') }}">
+                    <h2>{{ status }}</h2>
+                    <p>{{ count }} policies</p>
+                </a>
+                {% endfor %}
+                <div class="metric-card">
+                    <h2>Placement Rate</h2>
+                    <p>{{ placement_rate }}%</p>
+                </div>
+                <div class="metric-card">
+                    <h2>Average Premium</h2>
+                    <p>${{ avg_premium }}</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="commission-metrics">
+            <h3>Commission Metrics</h3>
+            <div class="grid">
+                <div class="metric-card">
+                    <h2>Commission Paid</h2>
+                    <p>${{ total_commission_paid }}</p>
+                </div>
+                <div class="metric-card">
+                    <h2>Commission Unpaid</h2>
+                    <p>${{ total_commission_unpaid }}</p>
+                </div>
+                <div class="metric-card">
+                    <h2>Missed Commissions (Lapse)</h2>
+                    <p>${{ missed_commissions }}</p>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Charts Section -->
+        <section id="charts">
+            <h3>Commission Breakdown</h3>
+            <div class="chart-container">
+                <canvas id="commissionChart"></canvas>
+            </div>
+        </section>
+    </main>
+
+    <!-- JavaScript for Charts -->
+    <script>
+        // Commission Breakdown Chart
+        const commissionData = {{ commission_data | tojson | safe }};
+        if (commissionData.length > 0) {
+            new Chart(document.getElementById('commissionChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: commissionData.map(item => item.carrier),
+                    datasets: [{
+                        data: commissionData.map(item => item.total_commission),
+                        backgroundColor: ['#4CAF50', '#FF9800', '#2196F3', '#F44336', '#9C27B0'],
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'right' },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.label}: $${context.raw.toLocaleString()}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+    <footer>
+        <p>&copy; 2024 Business Tracker. All Rights Reserved.</p>
+    </footer>
+</body>
+</html>

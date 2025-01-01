@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Client</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <h1>Add Client</h1>
+        <nav>
+            <a href="/">Home</a>
+            <a href="/clients">View Clients</a>
+            <a href="/dashboard">Dashboard</a>
+        </nav>
+    </header>
+    
+    <main>
+        <!-- Profile Card -->
+        <div class="profile-card">
+            <form method="POST">
+                <div class="form-group">
+                    <label for="client_name">Client Name:</label>
+                    <input type="text" id="client_name" name="client_name" required>
+                </div>
+            
+                <div class="form-group">
+                    <label for="date_of_birth">Date of Birth:</label>
+                    <input type="date" id="date_of_birth" name="date_of_birth" required>
+                </div>
+            
+                <div class="form-group">
+                    <label for="state">State:</label>
+                    <select id="state" name="state" required>
+                        <option value="" disabled selected>Select a State</option>
+                        {% for state in states %}
+                        <option value="{{ state }}">{{ state }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            
+                <div class="form-group">
+                    <label for="lead_source">Lead Source:</label>
+                    <select id="lead_source" name="lead_source" required>
+                        <option value="" disabled selected>Select a Lead Source</option>
+                        {% for source in lead_sources %}
+                        <option value="{{ source }}">{{ source }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            
+                <div class="form-group">
+                    <label for="carrier">Carrier:</label>
+                    <select id="carrier" name="carrier" required>
+                        <option value="" disabled selected>Select a Carrier</option>
+                        {% for carrier in carriers %}
+                        <option value="{{ carrier }}">{{ carrier }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            
+                <div class="form-group">
+                    <label for="product">Product:</label>
+                    <select id="product" name="product" required>
+                        <option value="" disabled selected>Select a Product</option>
+                    </select>
+                </div>
+            
+                <div class="form-group">
+                    <label for="annual_premium">Annual Premium:</label>
+                    <input type="number" id="annual_premium" name="annual_premium" step="0.01" required>
+                </div>
+            
+                <div class="form-group">
+                    <label for="status">Status:</label>
+                    <select id="status" name="status" required>
+                        <option value="" disabled selected>Select a Status</option>
+                        <option value="Inforce">Inforce</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Lapsed">Lapsed</option>
+                        <option value="Awaiting Funds">Awaiting Funds</option>
+                    </select>
+                </div>
+            
+                <div class="form-group">
+                    <label for="policy_date">Policy Date:</label>
+                    <input type="date" id="policy_date" name="policy_date" required>
+                </div>
+            
+                <button type="submit" class="submit-btn">Add Client</button>
+            </form>
+            
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2024 Business Tracker</p>
+    </footer>
+
+    <script>
+        const productData = {{ product_data | tojson }};
+        document.addEventListener('DOMContentLoaded', function () {
+            const carrierDropdown = document.getElementById('carrier');
+            const productDropdown = document.getElementById('product');
+            
+            carrierDropdown.addEventListener('change', function () {
+                const selectedCarrier = carrierDropdown.value;
+                productDropdown.innerHTML = '<option value="">Select a Product</option>';
+                
+                if (selectedCarrier) {
+                    const filteredProducts = productData.filter(item => item.carrier === selectedCarrier);
+                    filteredProducts.forEach(product => {
+                        const option = document.createElement('option');
+                        option.value = product.product;
+                        option.textContent = product.product;
+                        productDropdown.appendChild(option);
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

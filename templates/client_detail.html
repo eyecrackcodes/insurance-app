@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Client Details</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <h1>Client Details</h1>
+    </header>
+    <main>
+        <p><strong>Name:</strong> {{ client.Client }}</p>
+        <p><strong>Carrier:</strong> {{ client.Carrier }}</p>
+        <p><strong>Product:</strong> {{ client.Product }}</p>
+        <p><strong>Annual Premium:</strong> {{ client['Annual Premium'] }}</p>
+        <p><strong>Status:</strong> {{ client['Status Filter'] }}</p>
+        <p><strong>IP Date:</strong> {{ client['IP Date'] }}</p>
+        <a href="/clients">Back to Clients</a>
+        <a href="/dashboard">Dashboard</a>
+        <a href="/logout">Logout</a>
+
+    </main>
+    <footer>
+        <p>&copy; 2024 Business Tracker</p>
+    </footer>
+</body>
+</html>
