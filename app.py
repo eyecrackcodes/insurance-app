@@ -7,11 +7,13 @@ from config import SECRET_CODE
 from utils import switch_commission_tier
 from datetime import datetime, timedelta
 from flask import jsonify, redirect, request, session
+from flask_cors import CORS
 
 
 # Flask Application
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
+CORS(app)
 
 # Database Connection
 def get_db_connection():
@@ -214,6 +216,7 @@ def logout():
     return redirect('/login')  # Redirect to login page
 
 import json  # Ensure JSON is imported for serializing data.
+import os  # Import os module for file path operations
 
 
 
