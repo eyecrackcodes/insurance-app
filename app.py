@@ -254,7 +254,7 @@ def dashboard():
         }
 
         # Total Commissions Paid
-        cursor.execute('''
+        cursor.execute(''' 
             SELECT COALESCE(SUM(annual_premium * ?), 0)
             FROM clients
             WHERE username = ? AND LOWER(status) = "inforce"
@@ -273,7 +273,7 @@ def dashboard():
         cursor.execute('''
             SELECT COUNT(*)
             FROM clients
-            WHERE username = ? AND LOWER(status) = "lapsed"
+            WHERE username = ? AND LOWER(status) = "lapse"
         ''', (username,))
         lapsed_policies = cursor.fetchone()[0]
 
@@ -281,7 +281,7 @@ def dashboard():
         cursor.execute('''
             SELECT COALESCE(SUM(annual_premium * ?), 0)
             FROM clients
-            WHERE username = ? AND LOWER(status) = "lapsed"
+            WHERE username = ? AND LOWER(status) = "lapse"
         ''', (commission_rate, username))
         missed_commissions = cursor.fetchone()[0]
 
@@ -300,7 +300,7 @@ def dashboard():
 
         # Policy Metrics
         cursor.execute('''
-            SELECT status, COUNT(*) as count 
+            SELECT LOWER(status) as status, COUNT(*) as count 
             FROM clients 
             WHERE username = ? 
             GROUP BY status
@@ -363,6 +363,35 @@ def dashboard():
 
 
 
+@app.route('/normalize_statuses', methods=['GET'])
+def normalize_statuses():
+    """Normalize status column to lowercase for existing records."""
+    if 'username' not in session:
+        return redirect('/login')
+
+    username = session['username']
+    conn = sqlite3.connect('app.db')
+    cursor = conn.cursor()
+
+    try:
+        # Update all the status entries to lowercase (or you could use .upper() if you prefer uppercase)
+        cursor.execute('''
+            UPDATE clients
+            SET status = LOWER(status)
+        ''')
+        conn.commit()
+
+        flash("Statuses have been normalized to lowercase.", "success")
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+        flash(f"Database error: {e}", "danger")
+    finally:
+        conn.close()
+
+    return redirect('/clients')
+
+
+
 
 
 @app.route('/clients', methods=['GET'])
@@ -382,11 +411,16 @@ def clients():
         agent_data = cursor.fetchone()
         if not agent_data:
             return "Agent data not found.", 404
+
         commission_level = agent_data['commission_level'].upper()
         commission_rate = 0.05 if commission_level == 'LOA5' else 0.20
 
-        # Get the range of years dynamically from policy_date
-        cursor.execute("SELECT MIN(strftime('%Y', policy_date)) AS min_year, MAX(strftime('%Y', policy_date)) AS max_year FROM clients WHERE username = ?", (username,))
+        # Dynamically fetch the range of years from policy_date
+        cursor.execute(
+            "SELECT MIN(strftime('%Y', policy_date)) AS min_year, MAX(strftime('%Y', policy_date)) AS max_year "
+            "FROM clients WHERE username = ?",
+            (username,)
+        )
         year_data = cursor.fetchone()
         min_year = int(year_data['min_year']) if year_data['min_year'] else datetime.now().year
         max_year = int(year_data['max_year']) if year_data['max_year'] else datetime.now().year
@@ -408,26 +442,25 @@ def clients():
         params = [username]
 
         # Add filtering options
-        month = request.args.get('month', '')
-        year = request.args.get('year', '')
-        status = request.args.get('status', '')
+        month = request.args.get('month', '').strip()
+        year = request.args.get('year', '').strip()
+        status = request.args.get('status', '').strip().lower()
 
         if month:
             query += " AND strftime('%m', c.policy_date) = ?"
-            params.append(f"{int(month):02d}")  # Convert month to two-digit format
+            params.append(f"{int(month):02d}")
         if year:
             query += " AND strftime('%Y', c.policy_date) = ?"
             params.append(year)
         if status and status != 'all':
-            query += " AND c.status = ?"
+            query += " AND LOWER(c.status) = ?"
             params.append(status)
 
-        # Execute query
+        # Execute query with filters
         cursor.execute(query, params)
-        clients_data_raw = cursor.fetchall()
-        clients_data = [dict(row) for row in clients_data_raw]
+        clients_data = [dict(row) for row in cursor.fetchall()]
 
-        # Calculate commission due and format fields
+        # Calculate commission and format data for display
         for client in clients_data:
             try:
                 annual_premium = float(client.get('annual_premium') or 0.0)
@@ -435,14 +468,19 @@ def clients():
                 client['annual_premium'] = f"{annual_premium:,.2f}"
                 client['commission_due'] = f"{commission_due:,.2f}"
                 client['policy_date'] = datetime.strptime(client['policy_date'], '%Y-%m-%d').strftime('%b %d, %Y')
+                client['status'] = (client['status'] or "Select").strip().lower()
             except (TypeError, ValueError):
                 client['annual_premium'] = "$0.00"
                 client['commission_due'] = "$0.00"
                 client['policy_date'] = "N/A"
+                client['status'] = "Select"  # Default status if an error occurs
 
         # Fetch notes for each client
         for client in clients_data:
-            cursor.execute("SELECT note_text, created_at FROM notes WHERE client_id = ? ORDER BY created_at DESC", (client['id'],))
+            cursor.execute(
+                "SELECT note_text, created_at FROM notes WHERE client_id = ? ORDER BY created_at DESC",
+                (client['id'],)
+            )
             notes = cursor.fetchall()
             client['notes'] = [{'text': note['note_text'], 'created_at': note['created_at']} for note in notes]
 
@@ -452,11 +490,10 @@ def clients():
     finally:
         conn.close()
 
-    # Dropdown options
-    statuses = ["all", "Inforce", "Pending Lapse", "Lapse", "Awaiting Funds"]
-    
+    # Dropdown options for filtering
+    statuses = ["all", "inforce", "pending lapse", "lapse", "awaiting funds"]
 
-    # Render template
+    # Render template with data
     return render_template(
         'clients.html',
         clients=clients_data,
@@ -466,6 +503,37 @@ def clients():
         current_year=year,
         current_status=status,
     )
+
+
+
+@app.route('/debug_clients')
+def debug_clients():
+    username = session.get('username', 'test_user')  # Replace with a test username
+    month = request.args.get('month', '')
+    year = request.args.get('year', '')
+    status = request.args.get('status', '')
+
+    conn = sqlite3.connect('app.db')
+    cursor = conn.cursor()
+    query = '''
+    SELECT id, client_name, status
+    FROM clients
+    WHERE username = ?
+    '''
+    params = [username]
+    
+    if status and status != 'all':
+        query += " AND status = ?"
+        params.append(status)
+    
+    cursor.execute(query, params)
+    data = cursor.fetchall()
+    conn.close()
+    return jsonify(data)
+
+
+
+
 
 
 
@@ -593,12 +661,17 @@ def update_status():
     client_id = request.form.get('client_id')
     new_status = request.form.get('new_status')
 
+    # Don't process if "Select" is selected
+    if new_status == 'Select':
+        flash("Please select a valid status.", "warning")
+        return redirect('/clients')
+
     if not client_id or not new_status:
         flash("Invalid request. Please provide a client and status.", "danger")
         return redirect('/clients')
 
-    conn = get_db_connection()
     try:
+        conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute('''
             UPDATE clients
@@ -618,6 +691,8 @@ def update_status():
         conn.close()
 
     return redirect('/clients')
+
+
 
 
 
@@ -910,5 +985,6 @@ def get_state_list():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+
 
