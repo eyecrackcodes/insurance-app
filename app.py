@@ -10,6 +10,67 @@ from flask import jsonify, redirect, request, session
 from flask_cors import CORS
 
 
+def calculate_commission(carrier, product, annual_premium, contract_level):
+    """
+    Calculate commission dynamically based on carrier, product, annual premium, 
+    and contract level (e.g., P20, P10, LOA20).
+    """
+    # Fetch commission details from the database
+    product_details = get_commission_details(carrier, product, contract_level)
+    if not product_details:
+        return {"error": f"No commission details found for {carrier}, {product}, {contract_level}"}
+
+    # Extract commission and advance rates
+    comm_rate = product_details['commission_rate'] / 100  # Convert percentage to decimal
+    advance_rate = product_details['advance_rate'] / 100  # Convert percentage to decimal
+
+    # Perform calculations
+    total_commission = annual_premium * comm_rate
+    commission_due = total_commission * advance_rate
+
+    return {
+        "contract_level": contract_level,
+        "total_commission": round(total_commission, 2),
+        "commission_due": round(commission_due, 2)
+    }
+
+
+
+def get_commission_details(carrier, product, contract_level):
+    """
+    Fetch commission rate and advance rate based on carrier, product, and contract level.
+    """
+    conn = sqlite3.connect('app.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT commission_rate, advance_rate
+        FROM carrier_products
+        WHERE carrier = ? AND product = ? AND contract_level = ?
+    ''', (carrier, product, contract_level))
+    result = cursor.fetchone()
+    conn.close()
+
+    return result if result else None
+
+
+
+def get_agent_contract_level(username):
+    """
+    Fetch the contract level (e.g., P20, P10, LOA20) of an agent based on their username.
+    """
+    conn = sqlite3.connect('app.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT contract_level FROM agents WHERE username = ?", (username,))
+    agent = cursor.fetchone()
+    conn.close()
+
+    return agent['contract_level'] if agent else None
+
+
 # Flask Application
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
@@ -85,44 +146,99 @@ def index():
         cursor.execute('SELECT username, commission_level FROM agents WHERE username = ?', (username,))
         agent_data = cursor.fetchone()
         if not agent_data:
-            print("Agent not found.")
             return "Agent not found", 404
 
         commission_level = agent_data['commission_level'].upper()
-        commission_rate = 0.05 if commission_level == 'LOA5' else 0.20
+
+        # Initialize totals
+        total_commission_paid = 0
+        total_commission_unpaid = 0
 
         # Total Premium
-        cursor.execute('''SELECT COALESCE(SUM(annual_premium), 0) FROM clients WHERE username = ?''', (username,))
+        cursor.execute('SELECT COALESCE(SUM(annual_premium), 0) FROM clients WHERE username = ?', (username,))
         total_premium = cursor.fetchone()[0]
 
-        # Total Commission Paid (Inforce Policies)
-        cursor.execute('''SELECT COALESCE(SUM(annual_premium * ?), 0) FROM clients WHERE username = ? AND LOWER(status) = "inforce"''', (commission_rate, username))
-        total_commission_paid = cursor.fetchone()[0]
+        # Inforce Policies - Calculate Commission Paid
+        cursor.execute('''
+            SELECT c.carrier, c.product, c.annual_premium
+            FROM clients c
+            WHERE c.username = ? AND LOWER(c.status) = "inforce"
+        ''', (username,))
+        inforce_policies = cursor.fetchall()
+
+        for policy in inforce_policies:
+            carrier = policy['carrier']
+            product = policy['product']
+            annual_premium = float(policy['annual_premium'])
+
+            if commission_level.startswith('LOA'):
+                # Apply flat LOA commission rate
+                commission_rate = 0.05 if commission_level == 'LOA5' else 0.20
+                total_commission_paid += annual_premium * commission_rate
+            else:
+                # Fetch commission details dynamically
+                product_details = get_commission_details(carrier, product, commission_level)
+                if product_details:
+                    commission_rate = product_details['commission_rate'] / 100
+                    advance_rate = product_details['advance_rate'] / 100
+                    total_commission = annual_premium * commission_rate
+                    total_commission_paid += total_commission * advance_rate
+                else:
+                    print(f"Missing commission details for {carrier} - {product}")
+
+        # Awaiting Funds Policies - Calculate Commission Unpaid
+        cursor.execute('''
+            SELECT c.carrier, c.product, c.annual_premium
+            FROM clients c
+            WHERE c.username = ? AND LOWER(c.status) = "awaiting funds"
+        ''', (username,))
+        awaiting_funds_policies = cursor.fetchall()
+
+        for policy in awaiting_funds_policies:
+            carrier = policy['carrier']
+            product = policy['product']
+            annual_premium = float(policy['annual_premium'])
+
+            if commission_level.startswith('LOA'):
+                # Apply flat LOA commission rate
+                commission_rate = 0.05 if commission_level == 'LOA5' else 0.20
+                total_commission_unpaid += annual_premium * commission_rate
+            else:
+                # Fetch commission details dynamically
+                product_details = get_commission_details(carrier, product, commission_level)
+                if product_details:
+                    commission_rate = product_details['commission_rate'] / 100
+                    advance_rate = product_details['advance_rate'] / 100
+                    total_commission = annual_premium * commission_rate
+                    total_commission_unpaid += total_commission * advance_rate
+                else:
+                    print(f"Missing commission details for {carrier} - {product}")
 
         # Total Policies
         cursor.execute('SELECT COUNT(*) FROM clients WHERE username = ?', (username,))
         total_policies = cursor.fetchone()[0]
 
         # Fetch month-over-month commission data for chart
-        cursor.execute(''' 
+        cursor.execute('''
             SELECT strftime('%Y-%m', policy_date) AS month, 
-                COALESCE(SUM(annual_premium * ?), 0) AS commission_paid
+                   COALESCE(SUM(annual_premium * ?), 0) AS commission_paid
             FROM clients 
             WHERE username = ? 
             GROUP BY strftime('%Y-%m', policy_date) 
             ORDER BY month
-        ''', (commission_rate, username))
+        ''', (0.05 if commission_level == 'LOA5' else 0.20, username))
 
         month_data = [{'month': row['month'], 'commission_paid': row['commission_paid']} for row in cursor.fetchall()]
         commission_data = month_data  # Reuse month_data for commission data since they have the same structure
 
-        # Ensure that data is always passed as valid lists
+        # Ensure data is always passed as valid lists
         month_data = month_data if month_data else []
         commission_data = commission_data if commission_data else []
 
         # Format currency values
         total_premium = f"{total_premium:,.2f}"
         total_commission_paid = f"{total_commission_paid:,.2f}"
+        total_commission_unpaid = f"{total_commission_unpaid:,.2f}"
 
     except sqlite3.Error as e:
         print(f"Database error: {e}")
@@ -136,9 +252,18 @@ def index():
         total_policies=total_policies,
         total_premium=total_premium,
         total_commission_paid=total_commission_paid,
+        total_commission_unpaid=total_commission_unpaid,
         month_data=month_data,
         commission_data=commission_data
     )
+
+
+
+
+
+
+
+
 
 
 
@@ -155,14 +280,22 @@ def register():
     commission_tier = request.form.get('commission_tier', 'LOA5')  # Default to LOA5
     hire_date = request.form.get('hire_date')  # Get the hire date from the form
 
-      # Convert the hire_date to a datetime object
+    # Validate inputs
+    if not username or not password or not hire_date:
+        return jsonify({"error": "All fields are required."}), 400
+
+    # Convert the hire_date to a datetime object
     hire_date_obj = datetime.strptime(hire_date, '%Y-%m-%d')  # Assuming the format is YYYY-MM-DD
     today = datetime.today()
     days_since_hire = (today - hire_date_obj).days
 
-    # If the agent has been with the company for more than 180 days, set commission level to LOA20
-    if days_since_hire > 180:
-        commission_tier = 'LOA20'
+    # Logic for commission tier based on tenure or default selection
+    if commission_tier == "P20":
+        # P20 explicitly selected; ensure it's set correctly
+        commission_tier = "P20"
+    elif days_since_hire > 180:
+        # If tenure exceeds 180 days, automatically set to LOA20
+        commission_tier = "LOA20"
 
     # Generate secret_code
     secret_code = str(uuid.uuid4())  # Generate unique secret code
@@ -170,15 +303,20 @@ def register():
     conn = sqlite3.connect('app.db')
     cursor = conn.cursor()
 
-    # Insert new agent with provided hire_date
-    cursor.execute("""
-        INSERT INTO agents (username, password, commission_level, hire_date, secret_code)
-        VALUES (?, ?, ?, ?, ?)
-    """, (username, password, commission_tier, hire_date, secret_code))
-    conn.commit()
-    conn.close()
+    try:
+        # Insert new agent with the provided commission level and hire_date
+        cursor.execute("""
+            INSERT INTO agents (username, password, commission_level, hire_date, secret_code)
+            VALUES (?, ?, ?, ?, ?)
+        """, (username, password, commission_tier, hire_date, secret_code))
+        conn.commit()
+    except sqlite3.IntegrityError:
+        return jsonify({"error": "Username already exists. Please choose another."}), 400
+    finally:
+        conn.close()
 
     return redirect('/login')
+
 
 
 
@@ -239,35 +377,68 @@ def dashboard():
         if not agent_data:
             return "Agent not found", 404
 
-        # Get commission rate based on commission level
+        # Get commission level
         commission_level = agent_data['commission_level'].upper()
-        commission_rate = 0.05 if commission_level == 'LOA5' else 0.20
 
-        # Format the hire date to a more readable format (e.g., 'Jan 01, 2024')
-        hire_date_obj = datetime.strptime(agent_data['hire_date'], '%Y-%m-%d')  # Assuming 'YYYY-MM-DD'
-        formatted_hire_date = hire_date_obj.strftime('%b %d, %Y')  # Format as 'Jan 01, 2024'
+        # Format the hire date
+        hire_date_obj = datetime.strptime(agent_data['hire_date'], '%Y-%m-%d')
+        formatted_hire_date = hire_date_obj.strftime('%b %d, %Y')
 
         agent = {
             "username": agent_data['username'],
-            "commission_tier": agent_data['commission_level'],
+            "commission_tier": commission_level,
             "hire_date": formatted_hire_date,
         }
 
         # Total Commissions Paid
-        cursor.execute(''' 
-            SELECT COALESCE(SUM(annual_premium * ?), 0)
-            FROM clients
-            WHERE username = ? AND LOWER(status) = "inforce"
-        ''', (commission_rate, username))
-        total_commission_paid = cursor.fetchone()[0]
+        cursor.execute('''
+            SELECT c.carrier, c.product, c.annual_premium
+            FROM clients c
+            WHERE c.username = ? AND LOWER(c.status) = "inforce"
+        ''', (username,))
+        inforce_policies = cursor.fetchall()
+
+        total_commission_paid = 0
+        for policy in inforce_policies:
+            carrier = policy['carrier']
+            product = policy['product']
+            annual_premium = float(policy['annual_premium'])
+
+            if commission_level.startswith('LOA'):
+                commission_rate = 0.05 if commission_level == 'LOA5' else 0.20
+                total_commission_paid += annual_premium * commission_rate
+            else:
+                product_details = get_commission_details(carrier, product, commission_level)
+                if product_details:
+                    commission_rate = product_details['commission_rate'] / 100
+                    advance_rate = product_details['advance_rate'] / 100
+                    total_commission = annual_premium * commission_rate
+                    total_commission_paid += total_commission * advance_rate
 
         # Total Commissions Unpaid (Awaiting Funds)
         cursor.execute('''
-            SELECT COALESCE(SUM(annual_premium * ?), 0)
-            FROM clients
-            WHERE username = ? AND LOWER(status) = "awaiting funds"
-        ''', (commission_rate, username))
-        total_commission_unpaid = cursor.fetchone()[0]
+            SELECT c.carrier, c.product, c.annual_premium
+            FROM clients c
+            WHERE c.username = ? AND LOWER(c.status) = "awaiting funds"
+        ''', (username,))
+        awaiting_funds_policies = cursor.fetchall()
+
+        total_commission_unpaid = 0
+        for policy in awaiting_funds_policies:
+            carrier = policy['carrier']
+            product = policy['product']
+            annual_premium = float(policy['annual_premium'])
+
+            if commission_level.startswith('LOA'):
+                commission_rate = 0.05 if commission_level == 'LOA5' else 0.20
+                total_commission_unpaid += annual_premium * commission_rate
+            else:
+                product_details = get_commission_details(carrier, product, commission_level)
+                if product_details:
+                    commission_rate = product_details['commission_rate'] / 100
+                    advance_rate = product_details['advance_rate'] / 100
+                    total_commission = annual_premium * commission_rate
+                    total_commission_unpaid += total_commission * advance_rate
 
         # Lapsed Policies
         cursor.execute('''
@@ -279,11 +450,26 @@ def dashboard():
 
         # Missed Commissions (Lapsed Policies)
         cursor.execute('''
-            SELECT COALESCE(SUM(annual_premium * ?), 0)
-            FROM clients
-            WHERE username = ? AND LOWER(status) = "lapse"
-        ''', (commission_rate, username))
-        missed_commissions = cursor.fetchone()[0]
+            SELECT c.carrier, c.product, c.annual_premium
+            FROM clients c
+            WHERE c.username = ? AND LOWER(c.status) = "lapse"
+        ''', (username,))
+        lapsed_policies_data = cursor.fetchall()
+
+        missed_commissions = 0
+        for policy in lapsed_policies_data:
+            carrier = policy['carrier']
+            product = policy['product']
+            annual_premium = float(policy['annual_premium'])
+
+            if commission_level.startswith('LOA'):
+                commission_rate = 0.05 if commission_level == 'LOA5' else 0.20
+                missed_commissions += annual_premium * commission_rate
+            else:
+                product_details = get_commission_details(carrier, product, commission_level)
+                if product_details:
+                    commission_rate = product_details['commission_rate'] / 100
+                    missed_commissions += annual_premium * commission_rate
 
         # Average Premium
         cursor.execute('SELECT COALESCE(AVG(annual_premium), 0) FROM clients WHERE username = ?', (username,))
@@ -313,7 +499,7 @@ def dashboard():
             FROM clients 
             WHERE username = ?
             GROUP BY carrier
-        ''', (commission_rate, username))
+        ''', (0.05 if commission_level == 'LOA5' else 0.20, username))
         commission_data = [
             {'carrier': row['carrier'], 'total_commission': row['total_commission']}
             for row in cursor.fetchall()
@@ -327,7 +513,7 @@ def dashboard():
             WHERE username = ?
             GROUP BY strftime('%Y-%m', policy_date)
             ORDER BY month
-        ''', (commission_rate, username))
+        ''', (0.05 if commission_level == 'LOA5' else 0.20, username))
         month_data = [
             {'month': row['month'] or "N/A", 'commission_paid': row['commission_paid'] or 0}
             for row in cursor.fetchall()
@@ -338,7 +524,7 @@ def dashboard():
         total_commission_unpaid = f"{total_commission_unpaid:,.2f}"
         missed_commissions = f"{missed_commissions:,.2f}"
         avg_premium = f"{avg_premium:,.2f}"
-        placement_rate = round(placement_rate, 2)  # Rounded to 2 decimal places
+        placement_rate = round(placement_rate, 2)
 
     except sqlite3.Error as e:
         print(f"Database error: {e}")
@@ -349,16 +535,91 @@ def dashboard():
     return render_template(
         'dashboard.html',
         agent=agent,
-        missed_commissions=missed_commissions,
         policy_statuses=policy_statuses,
         total_commission_paid=total_commission_paid,
         total_commission_unpaid=total_commission_unpaid,
-        lapsed_policies=lapsed_policies,
+        missed_commissions=missed_commissions,
         avg_premium=avg_premium,
         placement_rate=placement_rate,
         commission_data=commission_data,
         month_data=month_data
     )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@app.route('/calculate_commission', methods=['POST'])
+def calculate_commission_view():
+    """
+    Route to calculate commission dynamically based on carrier, product, 
+    annual premium, and agent's contract level (e.g., P20, P10, LOA20).
+    """
+    if 'username' not in session:
+        return jsonify({"error": "User not logged in"}), 401
+
+    # Get the JSON payload from the request
+    data = request.json
+    carrier = data.get('carrier')
+    product = data.get('product')
+    try:
+        annual_premium = float(data.get('annual_premium', 0))
+    except (ValueError, TypeError):
+        return jsonify({"error": "Invalid annual premium value"}), 400
+
+    username = session.get('username')  # Fetch the logged-in user
+
+    # Validate input
+    if not (carrier and product and annual_premium > 0 and username):
+        return jsonify({"error": "Invalid input. Please provide carrier, product, and annual premium."}), 400
+
+    # Fetch the agent's contract level
+    contract_level = get_agent_contract_level(username)
+    if not contract_level:
+        return jsonify({"error": "Agent contract level not found"}), 404
+
+    # Fetch commission details for the product
+    product_details = get_commission_details(carrier, product, contract_level)
+    if not product_details:
+        return jsonify({
+            "error": f"No commission details found for {carrier} - {product} at {contract_level}. "
+                     f"Please contact your administrator to add this product."
+        }), 400
+
+    # Extract rates and calculate commission
+    try:
+        comm_rate = product_details.get('commission_rate', 0) / 100  # Default to 0 if missing
+        advance_rate = product_details.get('advance_rate', 100) / 100  # Default to 100% if missing
+
+        if comm_rate == 0:
+            return jsonify({
+                "error": f"Commission rate for {carrier} - {product} is missing or zero. Please verify."
+            }), 400
+
+        total_commission = annual_premium * comm_rate
+        commission_due = total_commission * advance_rate
+    except (KeyError, TypeError):
+        return jsonify({"error": "Incomplete or invalid commission details for this product."}), 400
+
+    # Return the calculated commission details
+    return jsonify({
+        "contract_level": contract_level,
+        "total_commission": round(total_commission, 2),
+        "commission_due": round(commission_due, 2),
+        "carrier": carrier,
+        "product": product
+    })
+
 
 
 
@@ -413,18 +674,6 @@ def clients():
             return "Agent data not found.", 404
 
         commission_level = agent_data['commission_level'].upper()
-        commission_rate = 0.05 if commission_level == 'LOA5' else 0.20
-
-        # Dynamically fetch the range of years from policy_date
-        cursor.execute(
-            "SELECT MIN(strftime('%Y', policy_date)) AS min_year, MAX(strftime('%Y', policy_date)) AS max_year "
-            "FROM clients WHERE username = ?",
-            (username,)
-        )
-        year_data = cursor.fetchone()
-        min_year = int(year_data['min_year']) if year_data['min_year'] else datetime.now().year
-        max_year = int(year_data['max_year']) if year_data['max_year'] else datetime.now().year
-        years = [str(year) for year in range(min_year, max_year + 1)]
 
         # Base query for fetching clients
         query = '''
@@ -463,26 +712,37 @@ def clients():
         # Calculate commission and format data for display
         for client in clients_data:
             try:
+                # Fetch commission details dynamically
+                carrier = client['carrier']
+                product = client['product']
+                product_details = get_commission_details(carrier, product, commission_level)
+
+                if product_details:
+                    # Extract commission and advance rates
+                    commission_rate = product_details['commission_rate'] / 100
+                    advance_rate = product_details['advance_rate'] / 100
+                else:
+                    # Default values if product details are missing
+                    commission_rate = 0.20
+                    advance_rate = 1.0  # No advance applied
+
+                # Calculate total commission and commission due
                 annual_premium = float(client.get('annual_premium') or 0.0)
-                commission_due = annual_premium * commission_rate
+                total_commission = annual_premium * commission_rate
+                commission_due = total_commission * advance_rate
+
+                # Format data for display
                 client['annual_premium'] = f"{annual_premium:,.2f}"
-                client['commission_due'] = f"{commission_due:,.2f}"
+                client['total_commission'] = f"{total_commission:,.2f}"  # Total commission
+                client['commission_due'] = f"{commission_due:,.2f}"  # Advance applied
                 client['policy_date'] = datetime.strptime(client['policy_date'], '%Y-%m-%d').strftime('%b %d, %Y')
                 client['status'] = (client['status'] or "Select").strip().lower()
             except (TypeError, ValueError):
                 client['annual_premium'] = "$0.00"
+                client['total_commission'] = "$0.00"
                 client['commission_due'] = "$0.00"
                 client['policy_date'] = "N/A"
                 client['status'] = "Select"  # Default status if an error occurs
-
-        # Fetch notes for each client
-        for client in clients_data:
-            cursor.execute(
-                "SELECT note_text, created_at FROM notes WHERE client_id = ? ORDER BY created_at DESC",
-                (client['id'],)
-            )
-            notes = cursor.fetchall()
-            client['notes'] = [{'text': note['note_text'], 'created_at': note['created_at']} for note in notes]
 
     except sqlite3.Error as e:
         print(f"Database error: {e}")
@@ -498,11 +758,12 @@ def clients():
         'clients.html',
         clients=clients_data,
         statuses=statuses,
-        years=years,
         current_month=month,
         current_year=year,
         current_status=status,
     )
+
+
 
 
 
@@ -582,49 +843,69 @@ def get_notes():
 @app.route('/update_commission')
 def update_commission():
     """Update commission level for LOA5 users who have been with the company for more than 180 days."""
-    
+
     # Connect to the database
     conn = sqlite3.connect('app.db')
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
     try:
-        # Fetch agents who have LOA5 commission level
+        # Fetch agents with LOA5 commission level
         cursor.execute('''
             SELECT username, commission_level, hire_date 
             FROM agents 
             WHERE commission_level = 'LOA5'
         ''')
-        
+
         agents = cursor.fetchall()
+        if not agents:
+            return "No agents with LOA5 commission level found.", 200
 
         # Get today's date
         today = datetime.today()
+        updated_agents = []
 
         for agent in agents:
-            hire_date = datetime.strptime(agent['hire_date'], '%Y-%m-%d')  # Assuming date format is YYYY-MM-DD
+            try:
+                hire_date = datetime.strptime(agent['hire_date'], '%Y-%m-%d')  # Assuming date format is YYYY-MM-DD
+            except ValueError:
+                print(f"Invalid hire date for agent {agent['username']}: {agent['hire_date']}")
+                continue  # Skip agents with invalid hire_date
+
             days_since_hire = (today - hire_date).days
 
             # If the agent has been with the company for more than 180 days
             if days_since_hire > 180:
-                # Update commission level to LOA20
-                cursor.execute('''
-                    UPDATE agents 
-                    SET commission_level = 'LOA20' 
-                    WHERE username = ?
-                ''', (agent['username'],))
+                updated_agents.append(agent['username'])
 
-                print(f"Updated {agent['username']} to LOA20 (Hire Date: {hire_date}, Days: {days_since_hire})")
+        if updated_agents:
+            # Use a bulk update query
+            cursor.executemany('''
+                UPDATE agents 
+                SET commission_level = 'LOA20' 
+                WHERE username = ?
+            ''', [(username,) for username in updated_agents])
 
-        # Commit changes to the database
-        conn.commit()
-        return "Commission levels updated successfully."
+            # Commit changes to the database
+            conn.commit()
+
+            return f"Updated {len(updated_agents)} agents to LOA20 successfully.", 200
+        else:
+            return "No agents eligible for commission level update.", 200
 
     except sqlite3.Error as e:
         print(f"Database error: {e}")
         return f"Database error: {e}", 500
     finally:
         conn.close()
+
+
+
+
+
+
+
+
 
 
 @app.route('/update_payment_status', methods=['POST'])
@@ -900,7 +1181,6 @@ def add_client():
             state = request.form.get('state', '').strip()
             lead_source = request.form.get('lead_source', '').strip()
             notes = request.form.get('notes', '').strip()
-            print(f"Notes from form: {notes}")
 
             # Validate required fields
             if not client_name or not carrier or not product:
@@ -938,12 +1218,21 @@ def add_client():
         conn = get_db_connection()
         cursor = conn.cursor()
 
+        # Fetch distinct carriers
         cursor.execute("SELECT DISTINCT carrier FROM carrier_products")
-        carriers = [dict(row)["carrier"] for row in cursor.fetchall()]  # Convert Row to Dict
+        carriers = [row["carrier"] for row in cursor.fetchall()]  # Extract carrier names
 
-        # Add client route logic for dynamic carrier and product data
-        cursor.execute("SELECT carrier, product FROM carrier_products")
-        product_data = [{"carrier": row["carrier"], "product": row["product"]} for row in cursor.fetchall()]
+        # Fetch distinct products grouped by carrier to remove duplicates
+        cursor.execute('''
+            SELECT DISTINCT carrier, product 
+            FROM carrier_products
+        ''')
+        product_data = []
+        seen_products = set()  # Set to avoid duplicates
+        for row in cursor.fetchall():
+            if (row["carrier"], row["product"]) not in seen_products:
+                product_data.append({"carrier": row["carrier"], "product": row["product"]})
+                seen_products.add((row["carrier"], row["product"]))  # Track seen (carrier, product) pairs
 
     except sqlite3.Error as e:
         print(f"Database error: {e}")
@@ -966,6 +1255,7 @@ def add_client():
 
     # Render the form
     return render_template('add_client.html', carriers=carriers, product_data=product_data, states=states, lead_sources=lead_sources)
+
 
 
 

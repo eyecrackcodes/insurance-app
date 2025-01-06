@@ -3,7 +3,7 @@ body {
     font-family: Arial, sans-serif;
     margin: 0;
     padding: 0;
-    background-color: #f9f9f9;
+    background-color: #ff0000;
     color: #333;
 }
 
@@ -183,28 +183,6 @@ select {
     background-color: #fff;
 }
 
-/* Status Badge */
-.status-badge {
-    display: inline-block;
-    padding: 4px 8px;
-    font-size: 12px;
-    font-weight: bold;
-    border-radius: 4px;
-    color: #fff;
-}
-
-.status-badge.inforce {
-    background-color: #28a745;
-}
-
-.status-badge.awaiting-funds {
-    background-color: #ffc107;
-    color: #212529;
-}
-
-.status-badge.lapsed {
-    background-color: #dc3545;
-}
 
 /* Responsive Design */
 @media (max-width: 768px) {
@@ -223,6 +201,44 @@ select {
         text-align: center;
     }
 }
+
+/* Status Badge */
+.status-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    font-size: 12px;
+    font-weight: bold;
+    border-radius: 4px;
+    color: #fff; /* White text color for visibility */
+    text-transform: capitalize; /* Capitalize the status text */
+}
+
+.status-badge.inforce {
+    background-color: #28a745; /* Green for Inforce */
+}
+
+.status-badge.awaiting-funds {
+    background-color: #ffc107; /* Yellow for Awaiting Funds */
+    color: #212529; /* Darker text for readability */
+}
+
+.status-badge.lapse {
+    background-color: #dc3545; /* Red for Lapse */
+}
+
+.status-badge.lapsed {
+    background-color: #dc3545; /* Red for Lapsed */
+}
+
+.status-badge.pending-lapse {
+    background-color: #fd1414; /* Orange for Pending Lapse */
+}
+
+/* Add hover effects to status badges for interactivity */
+.status-badge:hover {
+    opacity: 0.8;
+}
+
 
 .notes-modal {
     position: fixed; /* Fix position relative to the viewport */
@@ -606,6 +622,19 @@ form.add-client-form textarea:focus {
     box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
 }
 
+select {
+    padding: 6px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 13px;
+    background-color: #fff;
+}
+
+select:focus {
+    border-color: #007bff;
+}
+
+
 form.add-client-form button {
     width: 100%;
     padding: 12px;
@@ -799,4 +828,8 @@ label {
     font-weight: bold;
     color: #007bff;
 }
+
+
+
+
 

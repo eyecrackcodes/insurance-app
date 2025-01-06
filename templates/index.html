@@ -5,12 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Business Dashboard for tracking policies, premiums, and commissions.">
     <title>Business Dashboard</title>
-    <link rel="stylesheet" href="/static/style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!-- Include Chart.js -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment"></script>
     <style>
-        /* Add some custom styling */
         body {
             font-family: Arial, sans-serif;
             background-color: #f4f4f9;
@@ -29,10 +28,6 @@
         header h1 {
             margin: 0;
             font-size: 24px;
-        }
-
-        nav {
-            margin-top: 10px;
         }
 
         nav a {
@@ -83,7 +78,6 @@
             color: #333;
         }
 
-        /* Custom Styling for Chart */
         canvas {
             max-width: 100%;
             height: 400px;
@@ -115,6 +109,10 @@
                 <h2>Total Commissions Paid</h2>
                 <p>${{ total_commission_paid }}</p>
             </div>
+            <div class="metric-card">
+                <h2>Total Unpaid Commissions</h2>
+                <p>${{ total_commission_unpaid }}</p>
+            </div>
         </div>
 
         <!-- Chart Container -->
@@ -123,19 +121,15 @@
         </div>
     </main>
     <script>
-        // Ensure monthData and commissionData are valid
         const monthData = {{ month_data | tojson | safe }};
         const commissionData = {{ commission_data | tojson | safe }};
-        
-        // Check for empty data
+
         if (monthData.length === 0 || commissionData.length === 0) {
-            console.error('No data available to render the chart');
             document.getElementById('commissionChart').innerText = 'No data available for the chart.';
         } else {
             const labels = monthData.map(item => item.month);
             const commissionPaid = commissionData.map(item => item.commission_paid);
-    
-            // Prepare data for the chart
+
             const data = {
                 labels: labels,
                 datasets: [{
@@ -146,21 +140,11 @@
                     borderWidth: 2,
                     fill: true,
                     tension: 0.4
-                },
-                {
-                    label: 'Forecasted Trend',
-                    data: forecastTrend(commissionPaid),
-                    borderColor: 'rgba(255, 99, 132, 1)',
-                    borderWidth: 2,
-                    fill: false,
-                    borderDash: [5, 5],
-                    tension: 0.4
                 }]
             };
-    
-            // Create the chart
+
             const ctx = document.getElementById('commissionChart').getContext('2d');
-            const commissionChart = new Chart(ctx, {
+            new Chart(ctx, {
                 type: 'line',
                 data: data,
                 options: {
@@ -169,35 +153,17 @@
                             beginAtZero: true,
                             ticks: {
                                 callback: function(value) {
-                                    return '$' + value.toLocaleString(); // Format the Y-axis as currency
+                                    return '$' + value.toLocaleString();
                                 }
                             }
                         },
                         x: {
-                            type: 'time',  // Use 'time' scale for the X-axis
+                            type: 'time',
                             time: {
-                                unit: 'month',  // Set the time unit to 'month'
-                                tooltipFormat: 'll', // Format in the tooltip (e.g., 'Jan 2024')
+                                unit: 'month',
+                                tooltipFormat: 'MMM yyyy',
                                 displayFormats: {
-                                    month: 'MMM yyyy' // Format the X-axis as 'Jan 2024'
-                                }
-                            },
-                            ticks: {
-                                maxRotation: 45, 
-                                minRotation: 45
-                            }
-                        }
-                    },
-                    plugins: {
-                        tooltip: {
-                            callbacks: {
-                                label: function(tooltipItem) {
-                                    let label = '$' + tooltipItem.raw.toLocaleString();
-                                    // If the label belongs to the forecast trend
-                                    if (tooltipItem.datasetIndex === 1) {
-                                        label += ' (Forecasted Trend)'; // More descriptive
-                                    }
-                                    return label;
+                                    month: 'MMM yyyy'
                                 }
                             }
                         }
@@ -205,23 +171,7 @@
                 }
             });
         }
-    
-        // Function to forecast a simple trend line (moving average or linear regression)
-        function forecastTrend(data) {
-            const forecast = [];
-            for (let i = 0; i < data.length; i++) {
-                if (i < 2) { // Keep the initial values
-                    forecast.push(data[i]);
-                } else {
-                    const avg = (data[i] + data[i - 1] + data[i - 2]) / 3; // Simple moving average
-                    forecast.push(avg);
-                }
-            }
-            return forecast;
-        }
     </script>
-    
-    
     <footer>
         <p>&copy; 2024 Business Tracker. All Rights Reserved.</p>
     </footer>
