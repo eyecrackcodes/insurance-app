@@ -5,26 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Clients</title>
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        
+    </style>
     <script>
-        // JavaScript for filtering by month, year, and status
-        function filterByMonth(month) {
-            const urlParams = new URLSearchParams(window.location.search);
-            urlParams.set('month', month);
-            window.location.search = urlParams.toString(); // Reload with updated query
-        }
-
-        function filterByYear(year) {
-            const urlParams = new URLSearchParams(window.location.search);
-            urlParams.set('year', year);
-            window.location.search = urlParams.toString(); // Reload with updated query
-        }
-
-        function filterByStatus(status) {
-            const urlParams = new URLSearchParams(window.location.search);
-            urlParams.set('status', status);
-            window.location.search = urlParams.toString(); // Reload with updated query
-        }
-
         function openNotesModal(clientId, clientName) {
             document.getElementById('modal-client-id').value = clientId;
             document.getElementById('modal-client-name').textContent = clientName;
@@ -32,7 +16,6 @@
             const notesContainer = document.getElementById('modal-notes-container');
             notesContainer.innerHTML = '<p class="notes-placeholder">Loading notes...</p>';
 
-            // Fetch notes dynamically via AJAX
             fetch(`/get_notes?client_id=${clientId}`)
                 .then(response => response.json())
                 .then(data => {
@@ -63,13 +46,30 @@
                     notesContainer.innerHTML = '<p class="notes-placeholder">Error loading notes.</p>';
                 });
 
-            // Show modal
             document.getElementById('notes-modal').style.display = 'block';
             document.getElementById('modal-overlay').style.display = 'block';
         }
 
-        function closeNotesModal() {
-            document.getElementById('notes-modal').style.display = 'none';
+        function openEditModal(clientId) {
+            fetch(`/get_client_details?client_id=${clientId}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('edit-client-id').value = data.id;
+                    document.getElementById('edit-client-name').value = data.client_name;
+                    document.getElementById('edit-carrier').value = data.carrier;
+                    document.getElementById('edit-product').value = data.product;
+                    document.getElementById('edit-annual-premium').value = data.annual_premium;
+                    document.getElementById('edit-status').value = data.status;
+                    document.getElementById('edit-policy-date').value = data.policy_date;
+
+                    document.getElementById('edit-modal').style.display = 'block';
+                    document.getElementById('modal-overlay').style.display = 'block';
+                })
+                .catch(error => console.error('Error fetching client details:', error));
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
             document.getElementById('modal-overlay').style.display = 'none';
         }
     </script>
@@ -85,39 +85,7 @@
         </nav>
     </header>
 
-    <!-- Filters -->
-    <div class="filters">
-        <div class="filter-item">
-            <label for="status">Status:</label>
-            <select id="status" onchange="filterByStatus(this.value)">
-                <option value="Select" {% if current_status == 'Select' %}selected{% endif %}>Select</option>
-                <option value="Inforce" {% if current_status == 'Inforce' %}selected{% endif %}>Inforce</option>
-                <option value="Pending Lapse" {% if current_status == 'Pending Lapse' %}selected{% endif %}>Pending Lapse</option>
-                <option value="Lapse" {% if current_status == 'Lapse' %}selected{% endif %}>Lapse</option>
-                <option value="Awaiting Funds" {% if current_status == 'Awaiting Funds' %}selected{% endif %}>Awaiting Funds</option>
-            </select>
-        </div>
-
-        <div class="filter-item">
-            <label for="year">Year:</label>
-            <select id="year" onchange="filterByYear(this.value)">
-                <option value="all" {% if current_year == 'all' %}selected{% endif %}>All</option>
-                {% for y in years %}
-                <option value="{{ y }}" {% if current_year == y %}selected{% endif %}>{{ y }}</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div class="month-buttons">
-            {% for month, name in [("01", "Jan"), ("02", "Feb"), ("03", "Mar"), ("04", "Apr"), ("05", "May"), ("06", "Jun"),
-                                   ("07", "Jul"), ("08", "Aug"), ("09", "Sep"), ("10", "Oct"), ("11", "Nov"), ("12", "Dec")] %}
-            <button onclick="filterByMonth('{{ month }}')" class="month-button">{{ name }}</button>
-            {% endfor %}
-        </div>
-    </div>
-
     <main>
-        <!-- Clients Table -->
         <div class="table-container">
             <table>
                 <thead>
@@ -141,29 +109,16 @@
                             <td>{{ client['product'] }}</td>
                             <td>${{ client['annual_premium'] }}</td>
                             <td>${{ client['commission_due'] }}</td>
-                            <td>{{ client['policy_date']|default('N/A') }}</td>
+                            <td>{{ client['policy_date'] }}</td>
                             <td>
-                                <span class="status-badge {{ client['status'] | lower | replace(' ', '-') if client['status'] != 'Select' else 'default' }}">
-                                    {{ client['status'] if client['status'] != 'Select' else 'No Status' }}
+                                <span class="status-badge status-{{ client['status'] | lower | replace(' ', '-') }}">
+                                    {{ client['status'] }}
                                 </span>
                             </td>
                             <td>
-                                <form method="POST" action="/update_status" style="display:inline;">
-                                    <select name="new_status" onchange="this.form.submit()">
-                                        <option value="Select" {% if client['status'] == '' or client['status'] is none %}selected{% endif %}>Select</option>
-                                        <option value="Inforce" {% if client['status'] == 'Inforce' %}selected{% endif %}>Inforce</option>
-                                        <option value="Pending Lapse" {% if client['status'] == 'Pending Lapse' %}selected{% endif %}>Pending Lapse</option>
-                                        <option value="Lapse" {% if client['status'] == 'Lapse' %}selected{% endif %}>Lapse</option>
-                                        <option value="Awaiting Funds" {% if client['status'] == 'Awaiting Funds' %}selected{% endif %}>Awaiting Funds</option>
-                                    </select>
-                                    <input type="hidden" name="client_id" value="{{ client['id'] }}">
-                                </form>
-
-                                <button class="notes-button" onclick="openNotesModal('{{ client['id'] }}', '{{ client['client_name'] }}')">
-                                    View/Add Notes
-                                </button>
-
-                                <form method="POST" action="/delete_client" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this client?');">
+                                <button class="edit-button" onclick="openEditModal('{{ client['id'] }}')">Edit</button>
+                                <button class="notes-button" onclick="openNotesModal('{{ client['id'] }}', '{{ client['client_name'] }}')">Notes</button>
+                                <form method="POST" action="/delete_client" style="display:inline;" onsubmit="return confirm('Delete this client?');">
                                     <input type="hidden" name="client_id" value="{{ client['id'] }}">
                                     <button type="submit" class="delete-button">Delete</button>
                                 </form>
@@ -181,23 +136,51 @@
     </main>
 
     <!-- Notes Modal -->
-    <div id="notes-modal" class="notes-modal" style="display: none;">
+    <div id="notes-modal" class="modal">
         <h3>Notes for <span id="modal-client-name"></span></h3>
-
         <div id="modal-notes-container" class="notes-container">
             <p class="notes-placeholder">Loading notes...</p>
         </div>
-
         <form method="POST" action="/add_note" class="add-note-form">
             <textarea id="modal-note-text" name="note_text" placeholder="Add a new note..." required></textarea>
             <input type="hidden" id="modal-client-id" name="client_id">
-            <div class="modal-buttons">
-                <button type="button" onclick="closeNotesModal()">Cancel</button>
+            <div>
+                <button type="button" onclick="closeModal('notes-modal')">Close</button>
                 <button type="submit">Save Note</button>
             </div>
         </form>
     </div>
-    <div id="modal-overlay" class="modal-overlay" style="display: none;" onclick="closeNotesModal()"></div>
+
+    <!-- Edit Modal -->
+    <div id="edit-modal" class="modal">
+        <h3>Edit Client</h3>
+        <form method="POST" action="/update_client">
+            <input type="hidden" id="edit-client-id" name="client_id">
+            <label for="edit-client-name">Name:</label>
+            <input type="text" id="edit-client-name" name="client_name" required>
+            <label for="edit-carrier">Carrier:</label>
+            <input type="text" id="edit-carrier" name="carrier" required>
+            <label for="edit-product">Product:</label>
+            <input type="text" id="edit-product" name="product" required>
+            <label for="edit-annual-premium">Premium:</label>
+            <input type="number" id="edit-annual-premium" name="annual_premium" step="0.01" required>
+            <label for="edit-status">Status:</label>
+            <select id="edit-status" name="status">
+                <option value="Inforce">Inforce</option>
+                <option value="Pending Lapse">Pending Lapse</option>
+                <option value="Lapse">Lapse</option>
+                <option value="Awaiting Funds">Awaiting Funds</option>
+            </select>
+            <label for="edit-policy-date">Policy Date:</label>
+            <input type="date" id="edit-policy-date" name="policy_date" required>
+            <div>
+                <button type="button" class="cancel-button" onclick="closeModal('edit-modal')">Cancel</button>
+                <button type="submit" class="save-button">Save Changes</button>
+            </div>
+        </form>
+    </div>
+
+    <div id="modal-overlay" class="modal-overlay"></div>
 
     <footer>
         <p>&copy; 2024 Business Tracker. All Rights Reserved.</p>

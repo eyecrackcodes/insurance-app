@@ -1147,6 +1147,86 @@ def delete_client():
         print(f"Database error: {e}")
         return "Database error", 500
 
+#get client details
+@app.route('/get_client_details')
+def get_client_details():
+    """Fetch client details for editing."""
+    client_id = request.args.get('client_id')
+    if not client_id:
+        return jsonify({"error": "Client ID is required"}), 400
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM clients WHERE id = ?', (client_id,))
+        client = cursor.fetchone()
+        if not client:
+            return jsonify({"error": "Client not found"}), 404
+
+        client_data = {
+            "id": client["id"],
+            "client_name": client["client_name"],
+            "carrier": client["carrier"],
+            "product": client["product"],
+            "annual_premium": client["annual_premium"],
+            "status": client["status"],
+            "policy_date": client["policy_date"]
+        }
+        return jsonify(client_data)
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+        return jsonify({"error": "Database error occurred"}), 500
+    finally:
+        if 'conn' in locals():
+            conn.close()
+
+
+
+
+@app.route('/update_client', methods=['POST'])
+def update_client():
+    """Update client details."""
+    try:
+        client_id = request.form.get('client_id')
+        client_name = request.form.get('client_name')
+        carrier = request.form.get('carrier')
+        product = request.form.get('product')
+        annual_premium = float(request.form.get('annual_premium'))
+        status = request.form.get('status')
+        policy_date = request.form.get('policy_date')
+
+        if not client_id or not client_name or not carrier or not product:
+            flash("Missing required fields. Please fill in all details.", "danger")
+            return redirect('/clients')
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            UPDATE clients
+            SET client_name = ?, carrier = ?, product = ?, annual_premium = ?, 
+                status = ?, policy_date = ?
+            WHERE id = ?
+        ''', (client_name, carrier, product, annual_premium, status, policy_date, client_id))
+        conn.commit()
+
+        flash("Client updated successfully!", "success")
+        return redirect('/clients')
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+        flash("An error occurred while updating the client. Please try again.", "danger")
+        return redirect('/clients')
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        flash("An unexpected error occurred. Please try again.", "danger")
+        return redirect('/clients')
+    finally:
+        if 'conn' in locals():
+            conn.close()
+
+
+
+
+
 
 
 @app.route('/debug')
